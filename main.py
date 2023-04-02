@@ -126,6 +126,7 @@ def sendUserDraftToDatabase(from_id):
         is_admin = 1
     else:
         is_admin = 0
+    conn.ping(reconnect=True)
     conn.cursor().execute(
     f"INSERT INTO user (`surname`, `name`, `patrynomic`, `group`, `vk_id`, `is_admin`) "
     f"VALUES ('{user.surname}', '{user.name}', '{user.patronymic}', '{user.group}', '{from_id}', '{is_admin}')")
@@ -134,6 +135,7 @@ def sendUserDraftToDatabase(from_id):
 
 def sendLectionDraftToDatabase(from_id):
     lection = LECTIONS_DRAFTS.pop(from_id)
+    conn.ping(reconnect=True)
     conn.cursor().execute(
         f"INSERT INTO lections (`vk_id`, `date`, `name`, `description`) "
         f"VALUES ('{from_id}', '{lection.date.isoformat(sep=' ', timespec='microseconds')}', '{lection.name}', '{lection.descr}')")
@@ -142,6 +144,7 @@ def sendLectionDraftToDatabase(from_id):
 def getStatuses(from_id):
     date = datetime.now()
     timeMinus29min = date - timedelta(hours=0, minutes=29)
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT * FROM lections "
@@ -162,6 +165,7 @@ def getLections():
     date = datetime.now()
     timeMinus29min = date - timedelta(hours=0, minutes=29)
     timePlus1month = date + relativedelta(months=1)
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT * FROM lections "
@@ -174,6 +178,7 @@ def getLections():
     return filtered_output
 
 def getLectionsWaitingApproval():
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT * FROM lections "
@@ -185,6 +190,7 @@ def getLectionsWaitingApproval():
     return formatted_output
 
 def getClosestAvailableDatesForLections():
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     date = datetime.now()
 
@@ -207,6 +213,7 @@ def getClosestAvailableDatesForLections():
 
 def getTimesIfAvailableForLection(date):
     temp_lection_times = LECTION_TIMES.copy()
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     timePlus1day = date + timedelta(days=1)
 
@@ -221,6 +228,7 @@ def getTimesIfAvailableForLection(date):
 def getAvailableForCoworking(accepted_times):
     date = datetime.now()
     timeMinus29min = date - timedelta(hours=0, minutes=29)
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT * FROM coworking "
@@ -232,6 +240,7 @@ def getAvailableForCoworking(accepted_times):
     return accepted_times
 
 def getAvailableForAdminCoworking(time):
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     date = datetime.now()
     timeMinus29min = date - timedelta(hours=0, minutes=29)
@@ -248,6 +257,7 @@ def getAvailableForAdminCoworking(time):
         return output[0][2].split(',')
 
 def sendCoworkingToDatabase(from_id, time):
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     date = datetime.now()
     timeMinus29min = date - timedelta(hours=0, minutes=29)
@@ -279,6 +289,7 @@ def sendCoworkingToDatabase(from_id, time):
             return True
 
 def sendCoworkingCancelToDatabase(from_id, time):
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     date = datetime.now()
     timeMinus29min = date - timedelta(hours=0, minutes=29)
@@ -311,6 +322,7 @@ def sendLectionBookingToDatabase(from_id, item):
         else:
             currentStudents.append(str(from_id))
             newStudents = ','.join(currentStudents)
+            conn.ping(reconnect=True)
             conn.cursor().execute(
                 f"UPDATE `lections` SET `students` = '{newStudents}' WHERE (`id` = '{item}')")
             conn.commit()
@@ -322,6 +334,7 @@ def sendLectionBookingToDatabase(from_id, item):
 def sendLectionApproveToDatabase(item):
     lections = getLectionsWaitingApproval()
     if item in lections.keys():
+        conn.ping(reconnect=True)
         conn.cursor().execute(
             f"UPDATE `lections` SET `isApproved` = '1' WHERE (`id` = '{item}')")
         conn.commit()
@@ -331,17 +344,18 @@ def sendLectionApproveToDatabase(item):
 
 
 def isAdmin(from_id):
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT is_admin FROM user WHERE vk_id=\"{from_id}\"")
     output = cursor.fetchall()
-    print(type(output[0][0]))
 
     if output[0][0] == 1:
         return True
     return False
 
 def isExists(from_id):
+    conn.ping(reconnect=True)
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT EXISTS(SELECT 1 FROM user WHERE vk_id=\"{from_id}\")")
@@ -393,7 +407,7 @@ async def user_registration_group(message: Message, item: Optional[str] = None):
         await start_handler(message)
         await bot.state_dispenser.set(message.peer_id, States.COMMON)
     else:
-        if re.match('\w{1,4}-\d{2}\w?', item):
+        if re.match('\w{2,4}-\d{2,3}(вп|в|м)?', item):
             USER_DRAFTS[message.from_id].group = item
             USER_DRAFTS[message.from_id].vk_id = message.from_id
             await message.answer(f"Вы успешно зарегистрировались в системе!")
